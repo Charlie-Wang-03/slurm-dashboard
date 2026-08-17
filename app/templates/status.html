@@ -1,0 +1,500 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <p class="page-kicker">{{ strings['status.kicker'] }}</p>
+      <h1 class="page-title">{{ strings['status.title'] }}</h1>
+      <p class="page-description">{{ strings['status.subtitle'] }}</p>
+    </div>
+  </div>
+  <div class="section-row">
+    <div class="refresh-time">{{ strings['status.refresh'].format(time=last_refresh) }}</div>
+  </div>
+
+  <!-- GPU resource monitor (5-minute history, day/week/month/year) -->
+  <section class="status-section section-panel gpu-monitor-section">
+    <div class="section-heading">
+      <div>
+        <h2 class="section-title">{{ strings['gpu_monitor.title'] }}</h2>
+        <p class="section-note">{{ strings['gpu_monitor.subtitle'] }}</p>
+      </div>
+      <div class="gpu-controls-row">
+        <button class="btn btn-sm btn-secondary" id="mode-toggle-btn">{{ strings['gpu_monitor.mode_linear'] }}</button>
+        <div class="gpu-timescale-selector">
+          <button class="btn btn-sm btn-secondary timescale-btn active" data-scale="day">{{ strings['gpu_monitor.scale.day'] }}</button>
+          <button class="btn btn-sm btn-secondary timescale-btn" data-scale="week">{{ strings['gpu_monitor.scale.week'] }}</button>
+          <button class="btn btn-sm btn-secondary timescale-btn" data-scale="month">{{ strings['gpu_monitor.scale.month'] }}</button>
+          <button class="btn btn-sm btn-secondary timescale-btn" data-scale="year">{{ strings['gpu_monitor.scale.year'] }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Date range pickers (shown in both modes) -->
+    <div class="gpu-datepicker-row" id="gpu-datepicker-row" style="display:none;">
+      <div class="datepicker-group" id="datepicker-day" data-scale-group="day">
+        <label>{{ strings['gpu_monitor.range_start'] }}</label>
+        <input type="date" class="gpu-date-input" id="gpu-start-date" />
+        <label>{{ strings['gpu_monitor.range_end'] }}</label>
+        <input type="date" class="gpu-date-input" id="gpu-end-date" />
+      </div>
+      <div class="datepicker-group" id="datepicker-week" data-scale-group="week" style="display:none;">
+        <label>{{ strings['gpu_monitor.range_start'] }}</label>
+        <input type="week" class="gpu-week-input" id="gpu-start-week" />
+        <label>{{ strings['gpu_monitor.range_end'] }}</label>
+        <input type="week" class="gpu-week-input" id="gpu-end-week" />
+      </div>
+      <div class="datepicker-group" id="datepicker-month" data-scale-group="month" style="display:none;">
+        <label>{{ strings['gpu_monitor.range_start'] }}</label>
+        <input type="month" class="gpu-month-input" id="gpu-start-month" />
+        <label>{{ strings['gpu_monitor.range_end'] }}</label>
+        <input type="month" class="gpu-month-input" id="gpu-end-month" />
+      </div>
+      <div class="datepicker-group" id="datepicker-year" data-scale-group="year" style="display:none;">
+        <label>{{ strings['gpu_monitor.range_start'] }}</label>
+        <input type="number" class="gpu-year-input" id="gpu-start-year" min="2024" max="2030" placeholder="2026" />
+        <label>{{ strings['gpu_monitor.range_end'] }}</label>
+        <input type="number" class="gpu-year-input" id="gpu-end-year" min="2024" max="2030" placeholder="2026" />
+      </div>
+    </div>
+
+    {% if has_gpu_data %}
+    <div class="gpu-overview-cards">
+      <div class="info-card gpu-overview-card">
+        <span class="gpu-overview-label">{{ strings['gpu_monitor.overview.count'] }}</span>
+        <strong class="gpu-overview-value" id="gpu-count">{{ gpu_overview.gpu_count }}</strong>
+      </div>
+      <div class="info-card gpu-overview-card">
+        <span class="gpu-overview-label">{{ strings['gpu_monitor.overview.users'] }}</span>
+        <strong class="gpu-overview-value" id="gpu-active-users">{{ gpu_overview.active_users }}</strong>
+      </div>
+      <div class="info-card gpu-overview-card">
+        <span class="gpu-overview-label">{{ strings['gpu_monitor.overview.util'] }}</span>
+        <strong class="gpu-overview-value" id="gpu-avg-util">{{ gpu_overview.avg_utilization }}%</strong>
+      </div>
+    </div>
+
+    <div class="gpu-charts-grid">
+      <div class="gpu-chart-card chart-card">
+        <h3 class="chart-title">{{ strings['gpu_monitor.chart.memory'] }}</h3>
+        <div class="chart-container">
+          <canvas id="gpu-timeline-chart"></canvas>
+        </div>
+      </div>
+      <div class="gpu-chart-card chart-card">
+        <h3 class="chart-title">{{ strings['gpu_monitor.chart.distribution'] }}</h3>
+        <div class="chart-container chart-container-pie">
+          <canvas id="gpu-distribution-chart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="gpu-charts-grid gpu-charts-grid-second">
+      <div class="gpu-chart-card chart-card chart-card-full">
+        <h3 class="chart-title">{{ strings['gpu_monitor.chart.utilization'] }}</h3>
+        <div class="chart-container">
+          <canvas id="gpu-utilization-chart"></canvas>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <p><strong>{{ strings['gpu_monitor.no_data.title'] }}</strong></p>
+      <p>{{ strings['gpu_monitor.no_data.body'] }}</p>
+      <p class="empty-state-hint">{{ strings['gpu_monitor.no_data.hint'] | safe }}</p>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="status-section section-panel">
+    <h2 class="section-title">{{ strings['status.basic_info'] }}</h2>
+    <div class="info-grid info-grid-compact">
+      <div class="info-card"><span>{{ strings['status.user'] }}</span><strong class="cell-mono">{{ basic_info.current_user }}</strong></div>
+      <div class="info-card"><span>{{ strings['status.hostname'] }}</span><strong class="cell-mono">{{ basic_info.hostname }}</strong></div>
+      <div class="info-card"><span>{{ strings['status.dashboard_dir'] }}</span><strong class="cell-mono">{{ basic_info.dashboard_dir }}</strong></div>
+      <div class="info-card"><span>{{ strings['status.workspace'] }}</span><strong class="cell-mono">{{ basic_info.workspace_dir or strings['status.not_configured'] }}</strong></div>
+      <div class="info-card"><span>{{ strings['status.partition'] }}</span><strong class="cell-mono">{{ basic_info.slurm_partition }}</strong></div>
+    </div>
+  </section>
+
+  {% for group in status_groups %}
+  <section class="status-section section-panel status-command-group">
+    <div class="section-heading">
+      <div>
+        <h2 class="section-title">{{ strings.get(group.title, group.title) }}</h2>
+        <p class="section-note">{{ strings.get(group.description, group.description) }}</p>
+      </div>
+    </div>
+    <div class="command-grid">
+      {% for item in group['items'] %}
+      <article class="log-viewer command-viewer">
+        <div class="log-header command-header">
+          <div class="command-header-main">
+            <h3 class="log-title">{{ strings.get(item.title, item.title) }}</h3>
+            <code class="command-line">{{ item.command }}</code>
+          </div>
+          <span class="status-badge {{ item.status_badge_class }}">{{ strings.get(item.status_label, item.status_label) }}</span>
+          <button class="btn-copy" type="button" title="{{ strings['cheat.copy'] }}" data-copy="{{ item.command }}" onclick="copyText(this.dataset.copy, this)">⧉</button>
+        </div>
+        {% if item.error_message %}
+        <div class="alert alert-error command-error">
+          <p>{{ item.error_message }}</p>
+        </div>
+        {% endif %}
+        {% if item.has_output %}
+        <pre class="log-body log-stdout">{{ item.stdout }}{% if item.stderr %}{{ item.stderr }}{% endif %}</pre>
+        {% elif not item.stderr %}
+        <div class="empty-state">{{ strings['no_output_short'] }}</div>
+        {% endif %}
+        {% if item.stderr %}
+        <div class="log-subheader">
+          <span class="status-badge badge-danger">{{ strings['stderr.badge'] }}</span>
+        </div>
+        <pre class="log-body log-stderr">{{ item.stderr }}</pre>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+
+  {% include "_cheat_sheet.html" %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/vendor/chart.umd.min.js"></script>
+{% if has_gpu_data %}
+<script>
+(function() {
+  'use strict';
+
+  var I18N = {
+    modeLinear: {{ strings['gpu_monitor.mode_linear'] | tojson }},
+    modeOverlay: {{ strings['gpu_monitor.mode_overlay'] | tojson }},
+    axisTime: {{ strings['gpu_monitor.axis.time'] | tojson }},
+    axisMoment: {{ strings['gpu_monitor.axis.moment'] | tojson }},
+    axisWeekday: {{ strings['gpu_monitor.axis.weekday'] | tojson }},
+    axisDate: {{ strings['gpu_monitor.axis.date'] | tojson }},
+    axisWeeknum: {{ strings['gpu_monitor.axis.weeknum'] | tojson }},
+    axisMem: {{ strings['gpu_monitor.axis.mem'] | tojson }},
+    axisMemOverlay: {{ strings['gpu_monitor.axis.mem_overlay'] | tojson }},
+    axisUtil: {{ strings['gpu_monitor.axis.util'] | tojson }},
+  };
+
+  var OVERLAY_X_TITLES = { day: I18N.axisMoment, week: I18N.axisWeekday, month: I18N.axisDate, year: I18N.axisWeeknum };
+  var LINEAR_TICK_LIMITS = { day: 12, week: 24, month: 24, year: 31 };
+  var OVERLAY_TICK_LIMITS = { day: 12, week: 7, month: 15, year: 26 };
+
+  var CHART_COLORS = [
+    '#1d4f6f', '#0f7b83', '#9a6a12', '#b33a32', '#1f7a4f',
+    '#6c5b9e', '#d4645c', '#4a8c6f', '#b8832d', '#5b7a9a',
+  ];
+
+  var timelineChart = null;
+  var distributionChart = null;
+  var utilizationChart = null;
+
+  var state = { scale: 'day', mode: 'linear', start: null, end: null };
+
+  function isDarkTheme() {
+    var theme = document.documentElement.getAttribute('data-theme');
+    if (theme) return theme === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  // Canvas charts don't read CSS variables — pick readable colors per theme.
+  function chartColors() {
+    return isDarkTheme()
+      ? { text: '#CBD5E1', tick: '#94A3B8', grid: '#33415555' }
+      : { text: '#465766', tick: '#70808e', grid: '#d9e2e844' };
+  }
+
+  function getColor(index) { return CHART_COLORS[index % CHART_COLORS.length]; }
+
+  function buildConfig(label, color, index) {
+    return {
+      label: label,
+      borderColor: color,
+      backgroundColor: color + '20',
+      borderWidth: 2,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      pointHitRadius: 6,
+      tension: 0.3,
+      fill: false,
+    };
+  }
+
+  function renderCharts(data) {
+    var colors = chartColors();
+    var users = data.users || {};
+    var userNames = Object.keys(users);
+    var timeline = data.timeline || [];
+    var distribution = data.current_distribution || {};
+
+    var tickLimit = state.mode === 'overlay'
+      ? (OVERLAY_TICK_LIMITS[state.scale] || 12)
+      : (LINEAR_TICK_LIMITS[state.scale] || 12);
+    var xTitle = state.mode === 'overlay'
+      ? (OVERLAY_X_TITLES[state.scale] || I18N.axisTime)
+      : I18N.axisTime;
+    var yMemTitle = state.mode === 'overlay' ? I18N.axisMemOverlay : I18N.axisMem;
+
+    function axisOptions(yTitle, yTicks, yMax) {
+      var opts = {
+        x: {
+          display: true,
+          title: { display: true, text: xTitle },
+          ticks: { maxTicksLimit: tickLimit, font: { size: 11 }, color: colors.tick },
+          grid: { color: colors.grid }
+        },
+        y: {
+          display: true,
+          title: { display: true, text: yTitle },
+          beginAtZero: true,
+          ticks: { font: { size: 11 }, color: colors.tick, callback: yTicks },
+          grid: { color: colors.grid }
+        }
+      };
+      if (yMax) opts.y.max = yMax;
+      return opts;
+    }
+
+    var timelineDatasets = userNames.map(function(name, i) {
+      var cfg = buildConfig(name, getColor(i), i);
+      cfg.data = users[name].gpu_memory_mb || [];
+      return cfg;
+    });
+    var timelineCtx = document.getElementById('gpu-timeline-chart');
+    if (timelineCtx) {
+      if (timelineChart) timelineChart.destroy();
+      timelineChart = new Chart(timelineCtx, {
+        type: 'line',
+        data: { labels: timeline, datasets: timelineDatasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { usePointStyle: true, padding: 20, font: { size: 12 }, color: colors.text }
+            },
+            tooltip: {
+              callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + ' MB'; } }
+            }
+          },
+          scales: axisOptions(yMemTitle, function(v) { return v + ' MB'; })
+        }
+      });
+    }
+
+    var utilDatasets = userNames.map(function(name, i) {
+      var cfg = buildConfig(name, getColor(i), i);
+      cfg.data = users[name].gpu_util_pct || [];
+      return cfg;
+    });
+    var utilCtx = document.getElementById('gpu-utilization-chart');
+    if (utilCtx) {
+      if (utilizationChart) utilizationChart.destroy();
+      utilizationChart = new Chart(utilCtx, {
+        type: 'line',
+        data: { labels: timeline, datasets: utilDatasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { usePointStyle: true, padding: 20, font: { size: 12 }, color: colors.text }
+            },
+            tooltip: {
+              callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + '%'; } }
+            }
+          },
+          scales: axisOptions(I18N.axisUtil, function(v) { return v + '%'; }, 100)
+        }
+      });
+    }
+
+    var distLabels = Object.keys(distribution);
+    var distValues = Object.values(distribution);
+    var distCtx = document.getElementById('gpu-distribution-chart');
+    if (distCtx) {
+      if (distributionChart) distributionChart.destroy();
+      if (distLabels.length === 0) return;
+      distributionChart = new Chart(distCtx, {
+        type: 'doughnut',
+        data: {
+          labels: distLabels,
+          datasets: [{
+            data: distValues,
+            backgroundColor: distLabels.map(function(_, i) { return getColor(i); }),
+            borderColor: '#ffffff',
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { usePointStyle: true, padding: 16, font: { size: 12 }, color: colors.text }
+            },
+            tooltip: {
+              callbacks: { label: function(ctx) { return ctx.label + ': ' + ctx.parsed + '%'; } }
+            }
+          }
+        }
+      });
+    }
+
+    var gpuCountEl = document.getElementById('gpu-count');
+    var activeUsersEl = document.getElementById('gpu-active-users');
+    var avgUtilEl = document.getElementById('gpu-avg-util');
+    var overview = data.overview || {};
+    if (gpuCountEl) gpuCountEl.textContent = overview.gpu_count || 0;
+    if (activeUsersEl) activeUsersEl.textContent = overview.active_users || 0;
+    if (avgUtilEl) avgUtilEl.textContent = (overview.avg_utilization || 0) + '%';
+  }
+
+  function loadData() {
+    var url = '/status/gpu-history?scale=' + state.scale + '&mode=' + state.mode;
+    if (state.start) url += '&start=' + encodeURIComponent(state.start);
+    if (state.end) url += '&end=' + encodeURIComponent(state.end);
+
+    fetch(url)
+      .then(function(r) { return r.json(); })
+      .then(function(json) {
+        if (json.error) {
+          console.error('GPU history error:', json.error);
+          return;
+        }
+        renderCharts(json.data || {});
+      })
+      .catch(function(err) {
+        console.error('GPU history load failed:', err);
+      });
+  }
+
+  function fillDefaultDates() {
+    var now = new Date();
+    var isoDate = now.toISOString().split('T')[0];
+    if (state.scale === 'day') {
+      var sd = document.getElementById('gpu-start-date');
+      var ed = document.getElementById('gpu-end-date');
+      if (sd && !sd.value) sd.value = isoDate;
+      if (ed && !ed.value) ed.value = isoDate;
+    } else if (state.scale === 'week') {
+      var weekStr = getISOWeek(now);
+      var sw = document.getElementById('gpu-start-week');
+      var ew = document.getElementById('gpu-end-week');
+      if (sw && !sw.value) sw.value = weekStr;
+      if (ew && !ew.value) ew.value = weekStr;
+    } else if (state.scale === 'month') {
+      var monthStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      var sm = document.getElementById('gpu-start-month');
+      var em = document.getElementById('gpu-end-month');
+      if (sm && !sm.value) sm.value = monthStr;
+      if (em && !em.value) em.value = monthStr;
+    } else if (state.scale === 'year') {
+      var sy = document.getElementById('gpu-start-year');
+      var ey = document.getElementById('gpu-end-year');
+      if (sy && !sy.value) sy.value = now.getFullYear();
+      if (ey && !ey.value) ey.value = now.getFullYear();
+    }
+  }
+
+  function getISOWeek(d) {
+    var date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+    var yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    var weekNo = Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
+    return date.getUTCFullYear() + '-W' + String(weekNo).padStart(2, '0');
+  }
+
+  function updatePickerVisibility() {
+    var pickerRow = document.getElementById('gpu-datepicker-row');
+    if (pickerRow) pickerRow.style.display = 'flex';
+    var groups = document.querySelectorAll('.datepicker-group');
+    groups.forEach(function(g) {
+      g.style.display = (g.getAttribute('data-scale-group') === state.scale) ? 'flex' : 'none';
+    });
+    fillDefaultDates();
+  }
+
+  function getRangeValues() {
+    if (state.scale === 'day') {
+      state.start = document.getElementById('gpu-start-date').value;
+      state.end = document.getElementById('gpu-end-date').value;
+    } else if (state.scale === 'week') {
+      state.start = document.getElementById('gpu-start-week').value;
+      state.end = document.getElementById('gpu-end-week').value;
+    } else if (state.scale === 'month') {
+      state.start = document.getElementById('gpu-start-month').value;
+      state.end = document.getElementById('gpu-end-month').value;
+    } else if (state.scale === 'year') {
+      state.start = document.getElementById('gpu-start-year').value;
+      state.end = document.getElementById('gpu-end-year').value;
+    }
+  }
+
+  function loadIfReady() {
+    getRangeValues();
+    if (state.mode === 'overlay' && (!state.start || !state.end)) return;
+    loadData();
+  }
+
+  function setupModeToggle() {
+    var btn = document.getElementById('mode-toggle-btn');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+      if (state.mode === 'linear') {
+        state.mode = 'overlay';
+        btn.textContent = I18N.modeOverlay;
+      } else {
+        state.mode = 'linear';
+        btn.textContent = I18N.modeLinear;
+      }
+      updatePickerVisibility();
+      loadIfReady();
+    });
+  }
+
+  function setupTimescaleButtons() {
+    var buttons = document.querySelectorAll('.timescale-btn');
+    buttons.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        buttons.forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        state.scale = btn.getAttribute('data-scale');
+        updatePickerVisibility();
+        loadIfReady();
+      });
+    });
+  }
+
+  function setupDateInputListeners() {
+    var inputs = document.querySelectorAll('.gpu-date-input, .gpu-week-input, .gpu-month-input, .gpu-year-input');
+    inputs.forEach(function(input) {
+      input.addEventListener('change', function() { loadIfReady(); });
+    });
+  }
+
+  // Re-render with theme-appropriate colors when the theme changes.
+  window.addEventListener('dashboard-theme-changed', function() {
+    if (document.getElementById('gpu-timeline-chart')) loadData();
+  });
+
+  if (document.getElementById('gpu-timeline-chart')) {
+    setupModeToggle();
+    setupTimescaleButtons();
+    setupDateInputListeners();
+    updatePickerVisibility();
+    loadIfReady();
+  }
+})();
+</script>
+{% endif %}
+{% endblock %}

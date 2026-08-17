@@ -1,0 +1,83 @@
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+envs/
+
+# Runtime databases
+data/*.sqlite3
+data/*.db
+data/*.sqlite
+!data/.gitkeep
+
+# Logs
+logs/*.log
+logs/*.out
+logs/*.err
+logs/env_install_*.log
+!logs/.gitkeep
+
+# Temporary downloads and archives
+tmp_downloads/*
+!tmp_downloads/.gitkeep
+*.tar.gz
+*.zip
+*.gz
+
+# Upload cache and local runtime artifacts
+uploads/
+generated/
+*.tmp
+*.bak
+*.swp
+.DS_Store
+*.save
+
+# Large experiment artifacts
+*.pt
+*.pth
+*.ckpt
+*.npy
+*.npz
+*.h5
+*.hdf5
+*.mat
+outputs/
+checkpoints/
+slurm_scripts/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment variables
+.env
+.env.*
+
+# DATA-CATALOG runtime artifacts
+data/catalog/
+
+# GPU monitoring runtime data
+data/gpu_history/
+
+# Local private configuration
+config.local.json
+dashboard.config.json
+*.local.json
+data/alerts/
+
+# User workspace (runtime)
+workspace/
+
+# AI review graphs
+.code-review-graph/

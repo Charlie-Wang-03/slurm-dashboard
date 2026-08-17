@@ -1,0 +1,17 @@
+{
+  "workspace_root": "~/slurm-dashboard/workspace",
+  "slurm_partition": "GPU",
+  "allowed_partitions": [
+    "GPU"
+  ],
+  "default_gres": "gpu:1",
+  "allowed_gres": [
+    "gpu:1"
+  ],
+  "default_cpus": 4,
+  "default_mem": "16G",
+  "default_time": "00:30:00",
+  "server_bind_host": "127.0.0.1",
+  "server_port": 7860,
+  "ui_lang": "auto"
+}

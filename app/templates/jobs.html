@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <p class="page-kicker">{{ strings['jobs.kicker'] }}</p>
+      <h1 class="page-title">{{ strings['jobs.title'] }}</h1>
+      <p class="page-description">{{ strings['jobs.subtitle'] | safe }}</p>
+    </div>
+  </div>
+
+  <section class="status-section section-panel">
+    <div class="section-heading">
+      <div>
+        <h2 class="section-title">{{ strings['jobs.active'] }}</h2>
+      </div>
+      <code class="command-line">{{ strings['jobs.cmd_active'] }}</code>
+      <button class="btn-copy" type="button" title="{{ strings['cheat.copy'] }}" data-copy="{{ strings['jobs.cmd_active'] }}" onclick="copyText(this.dataset.copy, this)">⧉</button>
+    </div>
+    {% if active_jobs %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>{{ strings['jobs.col.id'] }}</th><th>{{ strings['jobs.col.status'] }}</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for job in active_jobs %}
+          <tr>
+            <td><strong class="cell-mono">{{ job.job_id }}</strong></td>
+            <td><span class="status-badge badge-running">{{ job.status }}</span></td>
+            <td><a class="btn btn-secondary btn-sm" href="/jobs/{{ job.job_id }}">{{ strings['jobs.details'] }}</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+      <p>{{ strings['jobs.no_active'] | safe }}</p>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="status-section section-panel">
+    <div class="section-heading">
+      <div>
+        <h2 class="section-title">{{ strings['jobs.recent'] }}</h2>
+      </div>
+      <code class="command-line">{{ strings['jobs.cmd_records'] }}</code>
+      <button class="btn-copy" type="button" title="{{ strings['cheat.copy'] }}" data-copy="{{ strings['jobs.cmd_records'] }}" onclick="copyText(this.dataset.copy, this)">⧉</button>
+    </div>
+    {% if records %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>{{ strings['jobs.col.id'] }}</th><th>{{ strings['jobs.col.name'] }}</th><th>{{ strings['jobs.col.script'] }}</th><th>{{ strings['jobs.col.partition'] }}</th><th>{{ strings['jobs.col.status'] }}</th><th>{{ strings['jobs.col.submitted'] }}</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rec in records %}
+          <tr>
+            <td><strong class="cell-mono">{{ rec.job_id }}</strong></td>
+            <td>{{ rec.job_name }}</td>
+            <td class="cell-mono">{{ rec.script_name }}</td>
+            <td class="cell-mono">{{ rec.partition }}</td>
+            <td><span class="status-badge badge-info">{{ rec.status }}</span></td>
+            <td class="cell-muted">{{ rec.submit_time }}</td>
+            <td><a class="btn btn-secondary btn-sm" href="/jobs/{{ rec.job_id }}">{{ strings['jobs.details'] }}</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+      <p>{{ strings['jobs.no_records'] }}</p>
+    </div>
+    {% endif %}
+  </section>
+
+  {% include "_cheat_sheet.html" %}
+</div>
+{% endblock %}
