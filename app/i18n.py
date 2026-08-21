@@ -99,7 +99,7 @@ STRINGS: dict = {
 
         "submit.kicker": "Controlled sbatch submission",
         "submit.title": "Submit a Job",
-        "submit.subtitle": "Paste a script or upload a <code>.sh</code> file. The dashboard submits it with <code>sbatch --chdir=&lt;workspace&gt; --partition={partition} ... run.sbatch</code>.",
+        "submit.subtitle": "Paste a script or upload a <code>.sh</code> file. The dashboard submits it with <code>sbatch --chdir=&lt;workspace&gt;{partition_flag} ... run.sbatch</code>. Partition and GRES flags are only added when configured.",
         "submit.workspace_card": "Workspace",
         "submit.workspace_hint": "Scripts are stored under <code>scripts/</code>; job output lands here as <code>slurm-&lt;jobid&gt;.out</code>.",
         "submit.not_configured": "Workspace is not configured yet. Set it up in Settings before submitting jobs.",
@@ -117,6 +117,7 @@ STRINGS: dict = {
         "submit.job_name": "Job name",
         "submit.partition": "Partition",
         "submit.gpu": "GPU (gres)",
+        "submit.default": "Default (SLURM)",
         "submit.cpus": "CPUs per task",
         "submit.mem": "Memory",
         "submit.time": "Time limit",
@@ -285,7 +286,7 @@ STRINGS: dict = {
 
         "submit.kicker": "受控 sbatch 提交",
         "submit.title": "提交作业",
-        "submit.subtitle": "粘贴脚本或上传 <code>.sh</code> 文件。仪表盘等价于执行 <code>sbatch --chdir=&lt;workspace&gt; --partition={partition} ... run.sbatch</code>。",
+        "submit.subtitle": "粘贴脚本或上传 <code>.sh</code> 文件。仪表盘等价于执行 <code>sbatch --chdir=&lt;workspace&gt;{partition_flag} ... run.sbatch</code>。分区与 GRES 参数仅在配置后才会附加。",
         "submit.workspace_card": "工作区",
         "submit.workspace_hint": "脚本保存在 <code>scripts/</code> 下；作业输出以 <code>slurm-&lt;jobid&gt;.out</code> 出现在工作区。",
         "submit.not_configured": "工作区尚未配置。请先在设置中配置后再提交作业。",
@@ -303,6 +304,7 @@ STRINGS: dict = {
         "submit.job_name": "作业名",
         "submit.partition": "分区",
         "submit.gpu": "GPU（gres）",
+        "submit.default": "默认（SLURM）",
         "submit.cpus": "CPU 核数",
         "submit.mem": "内存",
         "submit.time": "时长上限",

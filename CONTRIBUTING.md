@@ -31,8 +31,8 @@ cd slurm-dashboard
    (`tests/`, run with `.venv/bin/python -m pytest tests/ -x -q`).
 3. Verify the UI on a dev instance:
    `.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 7861`.
-4. Update docs that describe what you changed: `SPEC.md` (route table,
-   config model) is the authoritative one.
+4. Update docs that describe what you changed: `docs/architecture.md`
+   (route table, config model) is the authoritative one.
 5. Commit with an English message, e.g.
    `feat: add partition hint to the submit form`.
 
@@ -49,4 +49,4 @@ cd slurm-dashboard
 - [ ] `scripts/check_privacy.sh` passes
 - [ ] `en` and `zh` strings both updated when UI text changed
 - [ ] No `shell=True`, no `0.0.0.0`, no new command-execution surface
-- [ ] Docs updated (`SPEC.md` at minimum)
+- [ ] Docs updated (`docs/architecture.md` at minimum)

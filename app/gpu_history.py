@@ -13,7 +13,7 @@ Time scales: day / week / month / year
 
 import json
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -21,7 +21,11 @@ from app.config import DASHBOARD_DIR
 
 HISTORY_DIR = DASHBOARD_DIR / "data" / "gpu_history"
 HISTORY_FILE = HISTORY_DIR / "gpu_history.jsonl"
-BEIJING_TZ = timezone(timedelta(hours=8))
+
+
+def _local_tz():
+    """The server's local timezone (the dashboard has no fixed TZ)."""
+    return datetime.now().astimezone().tzinfo
 
 VALID_SCALES = ("day", "week", "month", "year")
 VALID_MODES = ("linear", "overlay")
@@ -33,14 +37,22 @@ WEEKDAY_LABELS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 # ── time parsing and data reading ─────────────────────────────────
 
 def _parse_timestamp(ts_str: str) -> Optional[datetime]:
-    """Parse an ISO timestamp as Beijing time."""
+    """Parse an ISO 8601 timestamp into a timezone-aware datetime.
+
+    Handles any UTC offset, including the ``+08:00`` suffix written by
+    v0.1.0 collectors (legacy data keeps working unchanged). Naive
+    timestamps (no offset) are interpreted as server-local time.
+    """
+    ts_str = (ts_str or "").strip()
+    if not ts_str:
+        return None
     try:
-        # format: 2026-07-10T12:00:00+08:00
-        ts_str = ts_str.replace("+08:00", "")
-        dt = datetime.strptime(ts_str, "%Y-%m-%dT%H:%M:%S")
-        return dt.replace(tzinfo=BEIJING_TZ)
+        dt = datetime.fromisoformat(ts_str)
     except (ValueError, TypeError):
         return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_local_tz())
+    return dt
 
 
 def read_gpu_history(
@@ -115,7 +127,7 @@ def _get_scale_bounds(
     Returns:
         (start, end, bucket_delta)
     """
-    now = datetime.now(BEIJING_TZ)
+    now = datetime.now().astimezone()
 
     # default bounds when the caller did not specify start/end
     if start_time is None:
@@ -206,7 +218,7 @@ def _overlay_bucket_index(dt: datetime, scale: str) -> int:
 # ── date parameter parsing ─────────────────────────────────────────
 
 def _parse_date_param(date_str: str, scale: str) -> datetime:
-    """Parse a front-end date string for a scale as Beijing time.
+    """Parse a front-end date string for a scale as server-local time.
 
     Supported formats:
     - day: "2026-07-25" (ISO date)
@@ -235,7 +247,7 @@ def _parse_date_param(date_str: str, scale: str) -> datetime:
         dt = datetime(int(date_str.strip()), 1, 1)
     else:
         dt = datetime.strptime(date_str.strip(), "%Y-%m-%d")
-    return dt.replace(tzinfo=BEIJING_TZ)
+    return dt.replace(tzinfo=_local_tz())
 
 
 # ── aggregation entry points ───────────────────────────────────────
@@ -563,7 +575,7 @@ def aggregate_gpu_data(
                 end_dt = end_dt.replace(month=end_dt.month + 1, day=1)
             end_dt = end_dt - timedelta(seconds=1)
         elif scale == "year":
-            end_dt = datetime(end_dt.year, 12, 31, 23, 59, 59, tzinfo=BEIJING_TZ)
+            end_dt = end_dt.replace(month=12, day=31, hour=23, minute=59, second=59)
 
     # resolve the window and read the data
     if mode == "overlay":

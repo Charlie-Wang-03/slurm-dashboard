@@ -125,13 +125,25 @@ def validate_job_name(job_name: str) -> str:
 
 
 def validate_partition(partition: str) -> str:
-    if partition not in ALLOWED_PARTITIONS:
+    """Validate a partition choice.
+
+    Empty means "no --partition flag" (SLURM's native default); any
+    non-empty value must be on the allowlist.
+    """
+    partition = (partition or "").strip()
+    if partition and partition not in ALLOWED_PARTITIONS:
         raise ValueError("SLURM partition is not on the whitelist")
     return partition
 
 
 def validate_gres(gres: str) -> str:
-    if gres not in ALLOWED_GRES:
+    """Validate a GRES choice.
+
+    Empty means "no --gres flag" (SLURM's native default); any non-empty
+    value must be on the allowlist.
+    """
+    gres = (gres or "").strip()
+    if gres and gres not in ALLOWED_GRES:
         raise ValueError("GPU request is not on the whitelist")
     return gres
 
@@ -218,8 +230,14 @@ def build_python_wrapper(
     lines = [
         "#!/usr/bin/env bash",
         f"#SBATCH --job-name={job_name}",
-        f"#SBATCH --partition={partition}",
-        f"#SBATCH --gres={gres}",
+        # partition / GRES directives are only emitted when configured
+        # (empty = SLURM's native default, matching submit_script).
+    ]
+    if partition:
+        lines.append(f"#SBATCH --partition={partition}")
+    if gres:
+        lines.append(f"#SBATCH --gres={gres}")
+    lines += [
         f"#SBATCH --cpus-per-task={cpus_per_task}",
         f"#SBATCH --mem={mem}",
         f"#SBATCH --time={time_limit}",
@@ -307,20 +325,26 @@ def submit_script(
         submit_path = script_path
         record_script_name = script_filename
 
+    sbatch_args = [
+        "sbatch",
+        "--job-name", validated_job_name,
+        "--cpus-per-task", str(validated_cpus),
+        "--mem", validated_mem,
+        "--time", validated_time_limit,
+        "--output", "slurm-%j.out",
+        "--error", "slurm-%j.err",
+    ]
+    # partition / GRES are only passed when configured; empty means
+    # "let SLURM use its native default".
+    if validated_partition:
+        sbatch_args += ["--partition", validated_partition]
+    if validated_gres:
+        sbatch_args += ["--gres", validated_gres]
+    sbatch_args.append(str(submit_path))
+
     try:
         result = subprocess.run(
-            [
-                "sbatch",
-                "--job-name", validated_job_name,
-                "--partition", validated_partition,
-                "--gres", validated_gres,
-                "--cpus-per-task", str(validated_cpus),
-                "--mem", validated_mem,
-                "--time", validated_time_limit,
-                "--output", "slurm-%j.out",
-                "--error", "slurm-%j.err",
-                str(submit_path),
-            ],
+            sbatch_args,
             capture_output=True,
             text=True,
             timeout=20,

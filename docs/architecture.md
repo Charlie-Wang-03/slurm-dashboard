@@ -1,4 +1,4 @@
-# SPEC.md — slurm-dashboard implementation spec
+# Architecture — slurm-dashboard implementation spec
 
 Version 2 (open-source teaching edition). This document is the
 authoritative description of the current implementation. Keep it in
@@ -19,11 +19,11 @@ Unknown keys raise `ConfigError` — there is no silent ignore.
 
 | Key | Type | Default | Notes |
 |-----|------|---------|-------|
-| `workspace_root` | str (path) | `""` (unconfigured) | `~` expanded, resolved, created; system directories rejected |
-| `slurm_partition` | str | `"GPU"` | must be in `allowed_partitions` |
-| `allowed_partitions` | list[str] | `["GPU"]` | whitelist shown in the submit form |
-| `default_gres` | str | `"gpu:1"` | must be in `allowed_gres` |
-| `allowed_gres` | list[str] | `["gpu:1"]` | whitelist |
+| `workspace_root` | str (path) | `""` (unconfigured) | `~` expanded, resolved, created; system directories rejected. The first-run wizard pre-fills `<repo>/workspace` (derived from the actual project location, not a fixed home path) |
+| `slurm_partition` | str | `""` (no flag) | empty = omit `--partition` (SLURM native default); non-empty must be in `allowed_partitions` |
+| `allowed_partitions` | list[str] | `[]` | whitelist shown in the submit form (may be empty) |
+| `default_gres` | str | `""` (no flag) | empty = omit `--gres` (SLURM native default); non-empty must be in `allowed_gres` |
+| `allowed_gres` | list[str] | `[]` | whitelist (may be empty) |
 | `default_cpus` | int | `4` | 1..32 |
 | `default_mem` | str | `"16G"` | must match `^[0-9]+[GM]$` |
 | `default_time` | str | `"00:30:00"` | `HH:MM:SS` or `D-HH:MM:SS`, minutes/seconds < 60 |
@@ -88,10 +88,12 @@ template value under autoescape.
    not the dashboard's `.venv`.
 4. Store the script under `<workspace>/scripts/` with a unique name.
 5. Prepend `#!/usr/bin/env bash` if no shebang.
-6. Run `sbatch --chdir=<workspace> --partition=... --gres=...
-   --cpus-per-task=... --mem=... --time=... --job-name=...
-   --output=slurm-%j.out --error=slurm-%j.err <script>` with list
-   arguments. The working directory is `<workspace>`, so outputs land as
+6. Run `sbatch --chdir=<workspace> --cpus-per-task=... --mem=...
+   --time=... --job-name=... --output=slurm-%j.out
+   --error=slurm-%j.err <script>` with list arguments. `--partition`
+   and `--gres` are only appended when the corresponding config value
+   is non-empty — unconfigured means "let SLURM use its native
+   default". The working directory is `<workspace>`, so outputs land as
    `slurm-<jobid>.out` / `slurm-<jobid>.err`.
 7. Record the job in SQLite (`source`: `paste` | `upload` | `external`).
 
@@ -154,6 +156,22 @@ labels are looked up by their English value
   history collection". Per-process records include usernames, PIDs,
   process names and SLURM job ids/names — privacy implications are
   documented in README "What the GPU collector records (privacy)".
+- **Timestamps** are ISO 8601 with the server's local UTC offset
+  (`datetime.now().astimezone().isoformat(timespec="seconds")`), so the
+  data is timezone-portable. `app/gpu_history.py` parses any offset —
+  including the `+08:00` suffix written by v0.1.0 collectors — and
+  treats naive timestamps as server-local. Chart windows and bucket
+  boundaries use the server's local timezone; there is no fixed
+  timezone anywhere.
+- **Process → GPU attribution** is by PCI bus id. The collector queries
+  `bus_id` per GPU (index) and per compute-app process, then
+  `attach_processes_to_gpus()` matches them (exact or full/short-form
+  suffix). Processes whose GPU cannot be determined are recorded under
+  `unmatched_processes` and are never attributed to a GPU — in
+  particular never defaulted to GPU 0, which v0.1.0 did for every
+  process it could not match. The dashboard does not chart
+  `unmatched_processes` (no GPU to attribute them to); the data is kept
+  in the record rather than dropped.
 - `app/gpu_history.py::aggregate_gpu_data(scale, mode, start, end, lang)`
   serves the charts:
   - `scale`: `day` | `week` | `month` | `year`; date params use the
@@ -174,7 +192,7 @@ labels are looked up by their English value
 | Concern | Mechanism |
 |---------|-----------|
 | Network exposure | binds 127.0.0.1 only; SSH port forwarding for remote access |
-| Local trust boundary | loopback binding stops remote access only — any local user can reach the port; no authentication by design, documented in README |
+| Local trust boundary | loopback binding, firewalls and authenticated reverse proxies stop *remote* access only — any local user can reach the port directly and bypass any proxy; no authentication by design, documented in README / SECURITY.md |
 | CSRF | `csrf_origin_guard` middleware rejects cross-origin state-changing POSTs (Origin must match Host and be loopback; requests without Origin — curl, scripts — are allowed) |
 | Command injection | subprocess list args; no `shell=True`; no command pages |
 | Resource abuse | sbatch parameter whitelists; script extension + no-directory check |

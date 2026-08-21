@@ -28,6 +28,6 @@ Binds to 127.0.0.1 only; access via SSH port forwarding.
 | Doc | Purpose |
 |-----|---------|
 | [AGENTS.md](AGENTS.md) | AI-agent rules, workflows, output conventions |
-| [SPEC.md](SPEC.md) | Architecture, configuration model, route table, DB schema |
-| [SMOKE_TEST.md](SMOKE_TEST.md) | Manual acceptance walk-through and security regression |
+| [docs/architecture.md](docs/architecture.md) | Architecture, configuration model, route table, DB schema |
+| [docs/testing.md](docs/testing.md) | Manual acceptance walk-through and security regression |
 | [README.md](README.md) | What the project is and how to run it |

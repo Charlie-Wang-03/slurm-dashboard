@@ -55,6 +55,12 @@ async def submit_form(request: Request, message: str = "", message_type: str = "
             "existing_scripts": list_existing_scripts(),
             "slurm_partition": settings.slurm_partition,
             "allowed_partitions": settings.allowed_partitions,
+            # "--partition=<name>" when configured, "" otherwise — the
+            # subtitle command sketch omits the flag in that case.
+            "partition_flag": (
+                f" --partition={settings.slurm_partition}"
+                if settings.slurm_partition else ""
+            ),
             "default_gres": settings.default_gres,
             "allowed_gres": settings.allowed_gres,
             "default_cpus": settings.default_cpus,
@@ -72,8 +78,8 @@ async def submit_job(
     script_text: str = Form(""),
     script_filename: str = Form("run.sbatch"),
     job_name: str = Form(...),
-    partition: str = Form(...),
-    gres: str = Form(...),
+    partition: str = Form(""),
+    gres: str = Form(""),
     cpus_per_task: int = Form(...),
     mem: str = Form(...),
     time_limit: str = Form(...),

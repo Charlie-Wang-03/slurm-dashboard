@@ -1,4 +1,4 @@
-# SMOKE_TEST.md — manual acceptance walk-through
+# Testing — manual acceptance walk-through
 
 Run this after any significant change, before publishing. A dev
 instance on **port 7861** keeps the running service (7860) untouched:
@@ -104,6 +104,10 @@ state instead of failing.
 
 ### 5a. Paste channel
 
+`partition` and `gres` are optional: omit them to submit without
+`--partition` / `--gres` flags (SLURM's native default). When they are
+sent, they must be on the configured allowlist.
+
 ```bash
 curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' \
   -X POST http://127.0.0.1:7861/submit \
@@ -111,8 +115,6 @@ curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' \
 echo "hello from $SLURM_JOB_ID"' \
   --data-urlencode 'script_filename=smoke.sbatch' \
   --data-urlencode 'job_name=smoke' \
-  --data-urlencode 'partition=GPU' \
-  --data-urlencode 'gres=gpu:1' \
   --data-urlencode 'cpus_per_task=1' \
   --data-urlencode 'mem=4G' \
   --data-urlencode 'time_limit=00:05:00'
@@ -139,14 +141,23 @@ curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' \
 
 ### 5c. Whitelist rejection stays intact
 
-A job name with a space must be rejected:
+A job name with a space must be rejected; a partition that is not on
+the allowlist must be rejected too:
 
 ```bash
 curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' \
   -X POST http://127.0.0.1:7861/submit \
   --data-urlencode 'script_text=echo hi' \
   --data-urlencode 'job_name=bad name' \
-  --data-urlencode 'partition=GPU' --data-urlencode 'gres=gpu:1' \
+  --data-urlencode 'cpus_per_task=1' --data-urlencode 'mem=4G' \
+  --data-urlencode 'time_limit=00:05:00'
+# expect: 303 -> /submit?message=...&message_type=error
+
+curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' \
+  -X POST http://127.0.0.1:7861/submit \
+  --data-urlencode 'script_text=echo hi' \
+  --data-urlencode 'job_name=ok' \
+  --data-urlencode 'partition=not-on-the-allowlist' \
   --data-urlencode 'cpus_per_task=1' --data-urlencode 'mem=4G' \
   --data-urlencode 'time_limit=00:05:00'
 # expect: 303 -> /submit?message=...&message_type=error

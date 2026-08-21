@@ -21,8 +21,11 @@ detected from `ui_lang` config / Accept-Language.
    port forwarding.
 2. **No arbitrary command execution.** No page may run a user-supplied
    command. SLURM submission parameters are whitelisted
-   (partition / gres / cpus / mem / time / name); script files must have
-   a `.sh`/`.sbatch`/`.py` extension and no directory components.
+   (partition / gres / cpus / mem / time / name). Partition and GRES
+   are optional — empty means the sbatch flag is omitted (SLURM's
+   native default); a configured value must be on the allowlist, no
+   silent fallback. Script files must have a `.sh`/`.sbatch`/`.py`
+   extension and no directory components.
    Python files are wrapped into an sbatch with a shlex-quoted
    `python3 <script>` line — the job runs on the compute node, where the
    dashboard's `.venv` does not exist, so the wrapper uses the node's
@@ -38,6 +41,15 @@ detected from `ui_lang` config / Accept-Language.
 6. **`.venv/` is the only Python environment.** Use
    `.venv/bin/python`, `.venv/bin/pip`, `.venv/bin/uvicorn`. Never the
    system `python3`.
+
+## Documentation map
+
+| Doc | Path | Purpose |
+|-----|------|---------|
+| Implementation spec | [docs/architecture.md](docs/architecture.md) | Architecture, configuration model, route table, DB schema |
+| Manual acceptance | [docs/testing.md](docs/testing.md) | Walk-through + security regression, run before publishing |
+| Project intro | [README.md](README.md) | Purpose, quick start, usage flow |
+| Contributor rules | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute, commit hygiene |
 
 ## Architecture map
 

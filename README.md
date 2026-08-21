@@ -52,15 +52,19 @@ ssh -L 7860:127.0.0.1:7860 user@your-server
 ```
 
 > **Security notes.** Binding to `127.0.0.1` stops *remote* access, but
-> any **local user on the same host can reach the port**, and websites
-> you visit while the tunnel is open can attempt cross-site form posts
-> (the dashboard rejects cross-origin requests). There is no
-> authentication — run it only on a machine where you trust every local
-> user (typically your own laptop or a single-user server). On a shared
-> login node, keep the workspace inside your home directory and use a
-> firewall or an authenticated reverse proxy if other users can log in.
-> `run_dashboard.sh` refuses any `HOST` that is not loopback — do not
-> work around that. Full trust model: [SECURITY.md](SECURITY.md).
+> any **local user on the same host can reach the port** — loopback
+> binding, a firewall and an authenticated reverse proxy only gate
+> *network* access; none of them stop other local users, who can reach
+> `127.0.0.1` directly and bypass any proxy. Websites you visit while
+> the tunnel is open can also attempt cross-site form posts (the
+> dashboard rejects cross-origin requests). There is no authentication
+> — run it only on a machine where you trust every local user
+> (typically your own laptop or a single-user server). On a shared
+> login node there is **no configuration that protects the dashboard
+> from other local users** — do not run it there unless every local
+> user is trusted. `run_dashboard.sh` refuses any `HOST` that is not
+> loopback — do not work around that. Full trust model:
+> [SECURITY.md](SECURITY.md).
 
 On the first visit you are guided to choose a workspace directory.
 That's the only setup step.
@@ -99,8 +103,9 @@ What that means for you:
   cluster the GPU section may show other users' usernames and job
   names — the same information `nvidia-smi` displays in a terminal.
   Check your cluster's policy before running the collector there.
-- The history file grows roughly 30 KB per day; delete it any time, or
-  remove the crontab line to stop collection entirely.
+- The history file grows as long as the collector runs (its size
+  depends on your GPU count and how many processes use them); delete
+  it any time, or remove the crontab line to stop collection entirely.
 
 ## Features
 
@@ -121,21 +126,27 @@ What that means for you:
 ## Configuration
 
 All settings live in `config.local.json` (gitignored). See
-[SPEC.md](SPEC.md#2-configuration-model) for every key. The important
-ones:
+[docs/architecture.md](docs/architecture.md#2-configuration-model) for
+every key. The important ones:
 
 ```jsonc
 {
-  "workspace_root": "~/slurm-dashboard/workspace", // scripts + job outputs
-  "slurm_partition": "GPU",                        // default partition
-  "allowed_partitions": ["GPU"],                   // whitelist in the form
-  "default_gres": "gpu:1",
-  "allowed_gres": ["gpu:1"],
-  "server_bind_host": "127.0.0.1",                 // 0.0.0.0 is rejected
+  "workspace_root": "",        // empty = unset; the first-run wizard asks
+                               // (it pre-fills <repo>/workspace — scripts
+                               // and job outputs live here)
+  "slurm_partition": "",       // empty = no --partition flag, SLURM's
+                               // native default applies
+  "allowed_partitions": [],    // picklist in the submit form (may be empty)
+  "default_gres": "",          // empty = no --gres flag, SLURM default
+  "allowed_gres": [],
+  "server_bind_host": "127.0.0.1",   // 0.0.0.0 / :: / * are rejected
   "server_port": 7860,
-  "ui_lang": "auto"                                // auto | en | zh
+  "ui_lang": "auto"            // auto | en | zh
 }
 ```
+
+When a partition or GRES value is set, it must be on the matching
+allowlist — there is no silent fallback.
 
 ## Development
 
@@ -145,9 +156,9 @@ ones:
 scripts/check_privacy.sh                       # publish gate
 ```
 
-- Architecture and route table: [SPEC.md](SPEC.md)
+- Architecture and route table: [docs/architecture.md](docs/architecture.md)
 - AI-agent rules: [AGENTS.md](AGENTS.md)
-- Manual acceptance walk-through: [SMOKE_TEST.md](SMOKE_TEST.md)
+- Manual acceptance walk-through: [docs/testing.md](docs/testing.md)
 
 ## Requirements
 
@@ -171,14 +182,15 @@ stops.
 ## Uninstalling
 
 1. Stop the dashboard (see above).
-2. Remove the repository (it contains the `.venv`, the SQLite database
-   and any collected GPU history):
-   `rm -rf ~/slurm-dashboard`
+2. Remove the repository directory you cloned into (it contains the
+   `.venv`, the SQLite database and any collected GPU history):
+   `rm -rf <path-to-repo>` (e.g. `rm -rf ~/slurm-dashboard`).
 3. Remove the crontab line that runs `tools/gpu_monitor.py` (`crontab
    -e`) if you added one.
 4. Jobs you submitted keep running on the cluster — cancel them with
    `scancel <job-id>` if desired. The workspace directory is inside the
-   repo by default; if you chose another path, remove that too.
+   repo by default (`<repo>/workspace`); if you chose another path,
+   remove that too.
 
 ## Contributing
 

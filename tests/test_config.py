@@ -132,8 +132,26 @@ def test_build_settings_with_valid_defaults(tmp_path):
     assert settings.server_bind_host == "127.0.0.1"
     assert settings.server_port == 7860
     assert settings.workspace_root == workspace.resolve()
-    assert settings.slurm_partition in settings.allowed_partitions
-    assert settings.default_gres in settings.allowed_gres
+    # Partition and GRES default to empty = "no sbatch flag, use
+    # SLURM's native default" (no membership requirement in that case).
+    assert settings.slurm_partition == ""
+    assert settings.allowed_partitions == []
+    assert settings.default_gres == ""
+    assert settings.allowed_gres == []
+
+
+def test_configured_partition_and_gres_validate(tmp_path):
+    """When partition/GRES are configured they must sit on the allowlist."""
+    config = dict(DEFAULT_CONFIG)
+    config["slurm_partition"] = "GPU"
+    config["allowed_partitions"] = ["GPU"]
+    config["default_gres"] = "gpu:1"
+    config["allowed_gres"] = ["gpu:1"]
+    settings = _build_settings(config)
+    assert settings.slurm_partition == "GPU"
+    assert settings.allowed_partitions == ["GPU"]
+    assert settings.default_gres == "gpu:1"
+    assert settings.allowed_gres == ["gpu:1"]
 
 
 def test_build_settings_empty_workspace_is_ok():

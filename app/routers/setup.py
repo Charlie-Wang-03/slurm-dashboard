@@ -21,7 +21,10 @@ from app.i18n import detect_language, get_strings
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
-DEFAULT_WORKSPACE = Path("~/slurm-dashboard/workspace").expanduser()
+# Default workspace = <repo>/workspace, derived from the actual project
+# location so the wizard works no matter where the repo was cloned.
+# (gitignored, like data/ and logs/.)
+DEFAULT_WORKSPACE = PROJECT_ROOT / "workspace"
 
 
 def resolve_workspace_path(raw: str) -> Path:

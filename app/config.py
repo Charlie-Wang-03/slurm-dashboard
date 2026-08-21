@@ -19,12 +19,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     # Empty string means "not configured yet" — the first-run wizard
-    # writes a value here (default: ~/slurm-dashboard/workspace).
+    # writes a value here (default: <repo>/workspace, see
+    # app/routers/setup.py).
     "workspace_root": "",
-    "slurm_partition": "GPU",
-    "allowed_partitions": ["GPU"],
-    "default_gres": "gpu:1",
-    "allowed_gres": ["gpu:1"],
+    # Empty partition / GRES means "no flag": SLURM's own default is
+    # used and the corresponding sbatch flag is omitted. When set, the
+    # value must be on the allowlist.
+    "slurm_partition": "",
+    "allowed_partitions": [],
+    "default_gres": "",
+    "allowed_gres": [],
     "default_cpus": 4,
     "default_mem": "16G",
     "default_time": "00:30:00",
@@ -87,11 +91,14 @@ def _reject_dangerous_root(path: Path, field_name: str) -> None:
             raise ConfigError(f"{field_name} must not be a system directory: {path}")
 
 
-def _require_str(config: Dict[str, Any], field_name: str) -> str:
+def _require_str(config: Dict[str, Any], field_name: str, allow_empty: bool = False) -> str:
     value = config[field_name]
-    if not isinstance(value, str) or not value.strip():
+    if not isinstance(value, str):
+        raise ConfigError(f"{field_name} must be a string")
+    value = value.strip()
+    if not value and not allow_empty:
         raise ConfigError(f"{field_name} must be a non-empty string")
-    return value.strip()
+    return value
 
 
 def _require_mem(config: Dict[str, Any], field_name: str) -> str:
@@ -119,15 +126,17 @@ def _require_name(config: Dict[str, Any], field_name: str) -> str:
     return value
 
 
-def _require_str_list(config: Dict[str, Any], field_name: str) -> List[str]:
+def _require_str_list(config: Dict[str, Any], field_name: str, allow_empty: bool = False) -> List[str]:
     value = config[field_name]
-    if not isinstance(value, list) or not value:
-        raise ConfigError(f"{field_name} must be a non-empty string list")
+    if not isinstance(value, list):
+        raise ConfigError(f"{field_name} must be a string list")
     normalized = []
     for index, item in enumerate(value):
         if not isinstance(item, str) or not item.strip():
             raise ConfigError(f"{field_name}[{index}] must be a non-empty string")
         normalized.append(item.strip())
+    if not normalized and not allow_empty:
+        raise ConfigError(f"{field_name} must be a non-empty string list")
     return normalized
 
 
@@ -171,14 +180,17 @@ def _build_settings(config: Dict[str, Any]) -> Settings:
     if server_bind_host in {"0.0.0.0", "::", "*"}:
         raise ConfigError("server_bind_host must be 127.0.0.1 (0.0.0.0 / :: / * rejected); access via SSH port forwarding")
 
-    slurm_partition = _require_str(config, "slurm_partition")
-    allowed_partitions = _require_str_list(config, "allowed_partitions")
-    if slurm_partition not in allowed_partitions:
+    # Partition and GRES are optional: empty means "no sbatch flag —
+    # use SLURM's native default". When configured, the value must be on
+    # the allowlist (strict enforcement, no silent fallback).
+    slurm_partition = _require_str(config, "slurm_partition", allow_empty=True)
+    allowed_partitions = _require_str_list(config, "allowed_partitions", allow_empty=True)
+    if slurm_partition and slurm_partition not in allowed_partitions:
         raise ConfigError("slurm_partition must be in allowed_partitions")
 
-    default_gres = _require_str(config, "default_gres")
-    allowed_gres = _require_str_list(config, "allowed_gres")
-    if default_gres not in allowed_gres:
+    default_gres = _require_str(config, "default_gres", allow_empty=True)
+    allowed_gres = _require_str_list(config, "allowed_gres", allow_empty=True)
+    if default_gres and default_gres not in allowed_gres:
         raise ConfigError("default_gres must be in allowed_gres")
 
     return Settings(

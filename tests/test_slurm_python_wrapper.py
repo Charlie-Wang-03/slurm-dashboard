@@ -85,7 +85,12 @@ def test_submit_script_python_writes_source_and_wrapper(tmp_path, monkeypatch):
     assert wrapper_path.name.endswith(".sbatch")
 
 
-def test_submit_script_python_invalid_name_rejected(tmp_path):
+def test_submit_script_python_invalid_name_rejected(tmp_path, monkeypatch):
+    """Invalid filename is rejected — with the whitelist patched so the
+    assertion targets the filename check, not partition validation
+    (Environment B: no config.local.json, empty allowlists)."""
+    monkeypatch.setattr("app.slurm.ALLOWED_PARTITIONS", ["GPU"])
+    monkeypatch.setattr("app.slurm.ALLOWED_GRES", ["gpu:1"])
     with pytest.raises(ValueError, match=r"\.sh, \.sbatch or \.py"):
         submit_script(
             script_content="x",

@@ -18,14 +18,13 @@ import re
 import socket
 import subprocess
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from pathlib import Path
 
 DASHBOARD_DIR = Path(__file__).resolve().parents[1]
 HISTORY_DIR = DASHBOARD_DIR / "data" / "gpu_history"
 HISTORY_FILE = HISTORY_DIR / "gpu_history.jsonl"
 SLURM_QUERY_TIMEOUT = 5
-BEIJING_TZ = timezone(timedelta(hours=8))
 
 
 def run_command(cmd, timeout=SLURM_QUERY_TIMEOUT):
@@ -46,7 +45,7 @@ def get_gpu_info():
     """Get per-GPU basics (index, name, utilization, memory, temperature)."""
     lines = run_command([
         "nvidia-smi",
-        "--query-gpu=index,name,utilization.gpu,utilization.memory,memory.used,memory.total,temperature.gpu",
+        "--query-gpu=index,name,utilization.gpu,utilization.memory,memory.used,memory.total,temperature.gpu,pci.bus_id",
         "--format=csv,noheader,nounits",
     ])
     gpus = []
@@ -62,6 +61,7 @@ def get_gpu_info():
                     "memory_used_mb": float(parts[4]),
                     "memory_total_mb": float(parts[5]),
                     "temperature_gpu": float(parts[6]) if parts[6] else None,
+                    "bus_id": parts[7] if len(parts) > 7 else "",
                     "processes": [],
                 })
             except (ValueError, IndexError):
@@ -237,9 +237,59 @@ def get_memory_info():
         return {"total_mb": 0, "available_mb": 0, "used_mb": 0, "utilization_pct": 0.0}
 
 
+def _normalize_bus_id(bus_id: str) -> str:
+    """Lowercase/strip a PCI bus id for comparison."""
+    return (bus_id or "").strip().lower()
+
+
+def _bus_ids_match(a: str, b: str) -> bool:
+    """True when two PCI bus ids refer to the same GPU.
+
+    nvidia-smi can return the short form ("3D:00.0") or the full form
+    ("00000000:3D:00.0") depending on driver version and query, so the
+    two queries may disagree on the format. Compare exactly first, then
+    by suffix containment.
+    """
+    a = _normalize_bus_id(a)
+    b = _normalize_bus_id(b)
+    if not a or not b:
+        return False
+    return a == b or a.endswith(b) or b.endswith(a)
+
+
+def attach_processes_to_gpus(gpus, processes):
+    """Attach enriched process dicts to their GPU by PCI bus id.
+
+    Processes whose GPU cannot be determined are returned separately in
+    ``unmatched`` and are never attributed to a GPU — there is no
+    fallback to GPU 0, so a multi-GPU host never gets fabricated
+    per-GPU data.
+    """
+    by_bus = {}
+    for gpu in gpus:
+        bus = _normalize_bus_id(gpu.get("bus_id", ""))
+        if bus:
+            by_bus[bus] = gpu
+
+    unmatched = []
+    for proc in processes:
+        gpu_bus = _normalize_bus_id(proc.get("gpu_bus_id", ""))
+        target = by_bus.get(gpu_bus)
+        if target is None:
+            for bus in by_bus:
+                if _bus_ids_match(bus, gpu_bus):
+                    target = by_bus[bus]
+                    break
+        if target is not None:
+            target["processes"].append(proc)
+        else:
+            unmatched.append(proc)
+    return gpus, unmatched
+
+
 def collect():
     """Run one full collection, return a JSON-serializable dict."""
-    now_beijing = datetime.now(BEIJING_TZ)
+    now_local = datetime.now().astimezone()
     gpus = get_gpu_info()
     processes = get_gpu_processes()
 
@@ -248,7 +298,7 @@ def collect():
     pid_user = mapping.get("pid_user", {})
     user_pid_job = mapping.get("user_pid_job", {})
 
-    # attach process info to its GPU
+    # enrich each process with user / SLURM job ownership
     for proc in processes:
         pid = proc["pid"]
         user = pid_user.get(pid)
@@ -261,37 +311,19 @@ def collect():
             job_id = job_info.get("job_id")
             job_name = job_info.get("job_name")
 
-        process_entry = {
-            "pid": pid,
-            "user": user,
-            "job_id": job_id,
-            "job_name": job_name,
-            "process_name": proc.get("process_name", ""),
-            "used_memory_mb": proc["used_memory_mb"],
-        }
+        proc["user"] = user
+        proc["job_id"] = job_id
+        proc["job_name"] = job_name
 
-        # nvidia-smi's compute-apps bus_id is a short PCI address; the
-        # GPU index is not exposed there. Simplification: match by
-        # bus_id substring against the index, else assign by memory
-        # usage — fall back to GPU 0 (single-GPU is the common case).
-        gpu_bus = proc.get("gpu_bus_id", "")
-        assigned = False
-        for gpu in gpus:
-            # try a partial bus_id match
-            if gpu_bus and gpu_bus in str(gpu.get("index", "")):
-                gpu["processes"].append(process_entry)
-                assigned = True
-                break
-        if not assigned:
-            # fallback: attach to the GPU with the most memory used;
-            # simplified to GPU 0 (single-GPU setups are the norm)
-            if gpus:
-                gpus[0]["processes"].append(process_entry)
+    # attach processes to their GPU by PCI bus id; processes whose GPU
+    # cannot be determined are recorded separately, never guessed.
+    gpus, unmatched_processes = attach_processes_to_gpus(gpus, processes)
 
     return {
-        "timestamp": now_beijing.strftime("%Y-%m-%dT%H:%M:%S+08:00"),
+        "timestamp": now_local.isoformat(timespec="seconds"),
         "hostname": socket.gethostname(),
         "gpus": gpus,
+        "unmatched_processes": unmatched_processes,
         "cpu": {
             "utilization_pct": get_cpu_utilization(),
             **get_loadavg(),
@@ -309,7 +341,7 @@ def main():
     except Exception as exc:
         # write an error entry on failure for easier debugging
         error_entry = {
-            "timestamp": datetime.now(BEIJING_TZ).strftime("%Y-%m-%dT%H:%M:%S+08:00"),
+            "timestamp": datetime.now().astimezone().isoformat(timespec="seconds"),
             "hostname": socket.gethostname(),
             "error": str(exc),
             "gpus": [],

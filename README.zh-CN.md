@@ -43,7 +43,7 @@ ssh -L 7860:127.0.0.1:7860 user@你的服务器
 
 首次访问会引导你选择工作区目录——这是唯一的设置步骤。
 
-> **安全说明**。绑定 `127.0.0.1` 只是阻止了*远程*访问——同一主机上的**任何本地用户都能访问该端口**；隧道开启期间访问的网页也可能尝试跨站表单提交（仪表盘会拒绝跨源请求）。本项目**没有身份认证**——请只在信任所有本地用户的机器上运行（通常是自己的笔记本或单用户服务器）。在共享登录节点上，请把工作区放在你自己的 home 目录内；若有其他用户登录，建议配合防火墙或带认证的反向代理使用。`run_dashboard.sh` 拒绝任何非 loopback 的 `HOST`——不要设法绕过。完整信任模型见 [SECURITY.md](SECURITY.md)。
+> **安全说明**。绑定 `127.0.0.1` 只是阻止了*远程*访问——同一主机上的**任何本地用户都能访问该端口**。loopback 绑定、防火墙和带认证的反向代理都只能阻挡*网络层*访问，**均无法阻止其他本地用户**——他们可以直接访问 `127.0.0.1`，绕过一切代理。隧道开启期间访问的网页也可能尝试跨站表单提交（仪表盘会拒绝跨源请求）。本项目**没有身份认证**——请只在信任所有本地用户的机器上运行（通常是自己的笔记本或单用户服务器）。在共享登录节点上，**没有任何配置能保护仪表盘免受其他本地用户访问**——除非你信任所有本地用户，否则不要在那里运行。`run_dashboard.sh` 拒绝任何非 loopback 的 `HOST`——不要设法绕过。完整信任模型见 [SECURITY.md](SECURITY.md)。
 
 ### GPU 历史采集
 
@@ -67,7 +67,7 @@ GPU 图表由采集器驱动：每 5 分钟采样一次 `nvidia-smi`，追加到
 
 - 数据不会离开你的服务器，也永远不会进入 git（`scripts/check_privacy.sh` 在发布时强制执行）。
 - 仪表盘图表按**用户**展示 GPU 使用情况，因此在共享集群上，GPU 区块可能显示其他用户的用户名和作业名——这与终端里 `nvidia-smi` 显示的信息相同。在该集群上运行采集器前，请确认其使用政策。
-- 历史文件每天约增长 30 KB；可随时删除，或移除 crontab 行以彻底停止采集。
+- 历史文件会随采集持续增长（大小取决于 GPU 数量与使用它们的进程数量）；可随时删除，或移除 crontab 行以彻底停止采集。
 
 ## 特性
 
@@ -79,20 +79,25 @@ GPU 图表由采集器驱动：每 5 分钟采样一次 `nvidia-smi`，追加到
 
 ## 配置
 
-所有设置位于 `config.local.json`（已被 git 忽略）。完整键表见 [SPEC.md](SPEC.md#2-configuration-model)。常用键：
+所有设置位于 `config.local.json`（已被 git 忽略）。完整键表见 [docs/architecture.md](docs/architecture.md#2-configuration-model)。常用键：
 
 ```jsonc
 {
-  "workspace_root": "~/slurm-dashboard/workspace", // 脚本与作业输出目录
-  "slurm_partition": "GPU",                        // 默认分区
-  "allowed_partitions": ["GPU"],                   // 表单中的白名单
-  "default_gres": "gpu:1",
-  "allowed_gres": ["gpu:1"],
-  "server_bind_host": "127.0.0.1",                 // 拒绝 0.0.0.0
+  "workspace_root": "",        // 空 = 未设置；首次运行向导会询问
+                               // （预填 <repo>/workspace —— 脚本与
+                               // 作业输出存放在这里）
+  "slurm_partition": "",       // 空 = 不带 --partition 参数，
+                               // 采用 SLURM 原生默认
+  "allowed_partitions": [],    // 提交表单中的分区列表（可为空）
+  "default_gres": "",          // 空 = 不带 --gres 参数，SLURM 默认
+  "allowed_gres": [],
+  "server_bind_host": "127.0.0.1",   // 拒绝 0.0.0.0 / :: / *
   "server_port": 7860,
-  "ui_lang": "auto"                                // auto | en | zh
+  "ui_lang": "auto"            // auto | en | zh
 }
 ```
+
+一旦设置了分区或 GRES 值，它必须位于对应的白名单中——没有静默回退。
 
 ## 开发
 
@@ -102,9 +107,9 @@ GPU 图表由采集器驱动：每 5 分钟采样一次 `nvidia-smi`，追加到
 scripts/check_privacy.sh                       # 发布门禁
 ```
 
-- 架构与路由表：[SPEC.md](SPEC.md)
+- 架构与路由表：[docs/architecture.md](docs/architecture.md)
 - AI Agent 行为规范：[AGENTS.md](AGENTS.md)
-- 人工验收走查：[SMOKE_TEST.md](SMOKE_TEST.md)
+- 人工验收走查：[docs/testing.md](docs/testing.md)
 
 ## 环境要求
 
@@ -120,9 +125,9 @@ scripts/check_privacy.sh                       # 发布门禁
 ## 卸载
 
 1. 停止仪表盘（见上文）。
-2. 删除整个仓库目录（内含 `.venv`、SQLite 数据库与采集到的 GPU 历史）：`rm -rf ~/slurm-dashboard`
+2. 删除你克隆下来的仓库目录（内含 `.venv`、SQLite 数据库与采集到的 GPU 历史）：`rm -rf <仓库路径>`（例如 `rm -rf ~/slurm-dashboard`）。
 3. 若添加过 crontab 行（`crontab -e` 中运行 `tools/gpu_monitor.py` 的那一行），请删除。
-4. 已提交的作业会继续在集群上运行——如需取消请用 `scancel <作业ID>`。工作区目录默认在仓库内；若你选择了其他路径，请一并删除。
+4. 已提交的作业会继续在集群上运行——如需取消请用 `scancel <作业ID>`。工作区目录默认在仓库内（`<repo>/workspace`）；若你选择了其他路径，请一并删除。
 
 ## 贡献
 

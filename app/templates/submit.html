@@ -26,8 +26,8 @@
     <p class="section-note">{{ strings['submit.workspace_hint'] | safe }}</p>
     <p class="section-note">{{ strings['submit.equivalent_cmd'] }}</p>
     <div class="command-header">
-      <code class="command-line">sbatch --chdir={{ workspace }} --partition={{ slurm_partition }} scripts/run.sbatch</code>
-      <button class="btn-copy" type="button" title="{{ strings['cheat.copy'] }}" data-copy="sbatch --chdir={{ workspace }} --partition={{ slurm_partition }} scripts/run.sbatch" onclick="copyText(this.dataset.copy, this)">⧉</button>
+      <code class="command-line">sbatch --chdir={{ workspace }}{% if slurm_partition %} --partition={{ slurm_partition }}{% endif %} scripts/run.sbatch</code>
+      <button class="btn-copy" type="button" title="{{ strings['cheat.copy'] }}" data-copy="sbatch --chdir={{ workspace }}{% if slurm_partition %} --partition={{ slurm_partition }}{% endif %} scripts/run.sbatch" onclick="copyText(this.dataset.copy, this)">⧉</button>
     </div>
   </section>
   {% endif %}
@@ -73,22 +73,28 @@
           <span>{{ strings['submit.job_name'] }}</span>
           <input type="text" name="job_name" value="hello" required />
         </label>
+        {% if allowed_partitions %}
         <label class="form-field">
           <span>{{ strings['submit.partition'] }}</span>
           <select name="partition">
+            <option value="" {% if not slurm_partition %}selected{% endif %}>{{ strings['submit.default'] }}</option>
             {% for p in allowed_partitions %}
             <option value="{{ p }}" {% if p == slurm_partition %}selected{% endif %}>{{ p }}</option>
             {% endfor %}
           </select>
         </label>
+        {% endif %}
+        {% if allowed_gres %}
         <label class="form-field">
           <span>{{ strings['submit.gpu'] }}</span>
           <select name="gres">
+            <option value="" {% if not default_gres %}selected{% endif %}>{{ strings['submit.default'] }}</option>
             {% for g in allowed_gres %}
             <option value="{{ g }}" {% if g == default_gres %}selected{% endif %}>{{ g }}</option>
             {% endfor %}
           </select>
         </label>
+        {% endif %}
         <label class="form-field">
           <span>{{ strings['submit.cpus'] }}</span>
           <input type="number" name="cpus_per_task" value="{{ default_cpus }}" min="1" max="32" required />

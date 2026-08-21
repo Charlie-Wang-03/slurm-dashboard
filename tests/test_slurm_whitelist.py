@@ -1,4 +1,9 @@
-"""Whitelist validation tests for app/slurm.py (v2 submit model)."""
+"""Whitelist validation tests for app/slurm.py (v2 submit model).
+
+The whitelists are monkeypatched so the tests pass on a fresh clone
+without any config.local.json (they must not depend on the author's
+machine configuration).
+"""
 
 import pytest
 
@@ -14,6 +19,15 @@ from app.slurm import (
 )
 
 
+@pytest.fixture()
+def whitelist(monkeypatch):
+    """A concrete partition/GRES allowlist for the whitelist tests."""
+    import app.slurm as slurm
+
+    monkeypatch.setattr(slurm, "ALLOWED_PARTITIONS", ["GPU", "CPU"])
+    monkeypatch.setattr(slurm, "ALLOWED_GRES", ["gpu:1", "gpu:2"])
+
+
 class TestJobName:
     def test_valid_names(self):
         assert validate_job_name("hello") == "hello"
@@ -26,21 +40,33 @@ class TestJobName:
 
 
 class TestPartitionWhitelist:
-    def test_allowed_partition_passes(self):
+    def test_allowed_partition_passes(self, whitelist):
         assert validate_partition("GPU") == "GPU"
+        assert validate_partition("CPU") == "CPU"
 
-    def test_disallowed_partition_rejected(self):
+    def test_disallowed_partition_rejected(self, whitelist):
         with pytest.raises(ValueError):
             validate_partition("highprio")
 
+    def test_empty_partition_is_slurm_default(self, whitelist):
+        """Empty = no --partition flag (SLURM's native default)."""
+        assert validate_partition("") == ""
+        assert validate_partition(None) == ""
+
 
 class TestGresWhitelist:
-    def test_allowed_gres_passes(self):
+    def test_allowed_gres_passes(self, whitelist):
         assert validate_gres("gpu:1") == "gpu:1"
+        assert validate_gres("gpu:2") == "gpu:2"
 
-    def test_disallowed_gres_rejected(self):
+    def test_disallowed_gres_rejected(self, whitelist):
         with pytest.raises(ValueError):
             validate_gres("gpu:8")
+
+    def test_empty_gres_is_slurm_default(self, whitelist):
+        """Empty = no --gres flag (SLURM's native default)."""
+        assert validate_gres("") == ""
+        assert validate_gres(None) == ""
 
 
 class TestCpus:
