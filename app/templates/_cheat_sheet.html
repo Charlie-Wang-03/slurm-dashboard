@@ -1,0 +1,18 @@
+{# Command cheat sheet — included on teaching pages. Requires `strings`. #}
+<div class="status-section section-panel">
+  <div class="section-heading">
+    <div>
+      <h2 class="section-title">{{ strings['cheat.title'] }}</h2>
+      <p class="section-note">{{ strings['cheat.subtitle'] }}</p>
+    </div>
+  </div>
+  <div>
+    {% for cmd, desc in strings['cheat.items'] %}
+    <div class="cheat-row">
+      <code class="command-line cheat-cmd">{{ cmd }}</code>
+      <span class="cell-muted cheat-desc">{{ desc }}</span>
+      <button class="btn-copy" type="button" title="{{ strings['cheat.copy'] }}" data-copy="{{ cmd }}" onclick="copyText(this.dataset.copy, this)">⧉</button>
+    </div>
+    {% endfor %}
+  </div>
+</div>

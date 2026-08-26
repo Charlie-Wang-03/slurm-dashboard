@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <p class="page-kicker">{{ strings['setup.kicker'] }}</p>
+      <h1 class="page-title">{{ strings['setup.title'] }}</h1>
+      <p class="page-description">{{ strings['setup.subtitle'] }}</p>
+    </div>
+  </div>
+
+  {% if message %}
+  <div class="alert {% if message_type == 'error' %}alert-error{% else %}alert-info{% endif %}">
+    <p>{{ message }}</p>
+  </div>
+  {% endif %}
+
+  <section class="status-section section-panel">
+    <h2 class="section-title">{{ strings['setup.workspace_card'] }}</h2>
+    {% if current_workspace %}
+    <p class="section-note">{{ strings['setup.current'].format(path=current_workspace) }}</p>
+    {% endif %}
+    <form method="post" action="/setup">
+      <label class="form-field" for="workspace">
+        <span>{{ strings['setup.workspace_label'] }}</span>
+        <input type="text" id="workspace" name="workspace" value="{{ current_workspace or default_workspace }}" class="cell-mono" />
+      </label>
+      <p class="section-note">{{ strings['setup.workspace_hint'] | safe }}</p>
+      <div class="action-row">
+        <button class="btn btn-primary" type="submit">{{ strings['setup.save_btn'] }}</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

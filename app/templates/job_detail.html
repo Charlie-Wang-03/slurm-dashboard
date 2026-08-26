@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block page_header %}
+<div class="page-header">
+  <h1>{{ strings['job.title'].format(job_id=job_id) }}</h1>
+  <div class="action-row">
+    <form method="post" action="/jobs/{{ job_id }}/cancel" data-confirm="{{ strings['job.confirm'].format(job_id=job_id) }}" onsubmit="return confirm(this.dataset.confirm);">
+      <button class="btn btn-danger btn-sm" type="submit">{{ strings['job.cancel'].format(job_id=job_id) }}</button>
+    </form>
+    {% if download_url %}
+    <a class="btn btn-secondary btn-sm" href="{{ download_url }}">{{ strings['job.download'] }}</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">{{ strings['job.record'] }}</span>
+  </div>
+  <div class="card-body compact-dl">
+    {% if record %}
+    <dl>
+      <dt>{{ strings['job.dt.name'] }}</dt><dd class="cell-mono">{{ record.job_name }}</dd>
+      <dt>{{ strings['job.dt.script'] }}</dt><dd class="cell-mono">{{ record.script_name }}</dd>
+      <dt>{{ strings['job.dt.source'] }}</dt><dd class="cell-mono">{{ record.source }}</dd>
+      <dt>{{ strings['job.dt.partition'] }}</dt><dd class="cell-mono">{{ record.partition }}</dd>
+      <dt>{{ strings['job.dt.gpu'] }}</dt><dd class="cell-mono">{{ record.gres }}</dd>
+      <dt>{{ strings['job.dt.cpus'] }}</dt><dd class="cell-mono">{{ record.cpus_per_task }}</dd>
+      <dt>{{ strings['job.dt.mem'] }}</dt><dd class="cell-mono">{{ record.mem }}</dd>
+      <dt>{{ strings['job.dt.time'] }}</dt><dd class="cell-mono">{{ record.time_limit }}</dd>
+      <dt>{{ strings['job.dt.status'] }}</dt><dd class="cell-mono">{{ record.status }}</dd>
+      <dt>{{ strings['job.dt.submitted'] }}</dt><dd class="cell-mono">{{ record.submit_time }}</dd>
+    </dl>
+    {% else %}
+    <p class="cell-muted">{{ strings['job.external_note'] }}</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">{{ strings['job.accounting'].format(job_id=job_id) }}</span>
+    <span class="badge {{ sacct.status_badge_class }}">{{ strings.get(sacct.status_label, sacct.status_label) }}</span>
+    <code class="command-line">sacct -j {{ job_id }} --format=JobID,JobName,Partition,State,Elapsed,End,ExitCode --noheader --parsable2</code>
+    <button class="btn-copy" type="button" title="{{ strings['cheat.copy'] }}" data-copy="sacct -j {{ job_id }} --format=JobID,JobName,Partition,State,Elapsed,End,ExitCode --noheader --parsable2" onclick="copyText(this.dataset.copy, this)">⧉</button>
+  </div>
+  <div class="card-body">
+    <p class="page-subtitle">{{ strings['job.elapsed'].format(value=timing.elapsed_time) }} — {{ strings['job.ends'].format(value=timing.end_time) }}</p>
+    <pre class="code-block">{{ sacct.stdout }}{{ sacct.stderr }}</pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">{{ strings['job.output_tail'].format(n=100, job_id=job_id) }}</span>
+  </div>
+  <div class="card-body">
+    {% if has_output %}
+    <pre class="code-block">{{ tail_out }}</pre>
+    {% else %}
+    <p class="cell-muted">{{ strings['job.no_output_pre'] | safe }}<code>slurm-{{ job_id }}.out</code>{{ strings['job.no_output_post'] | safe }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

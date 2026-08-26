@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <p class="page-kicker">{{ strings['env.kicker'] }}</p>
+      <h1 class="page-title">{{ strings['env.title'] }}</h1>
+      <p class="page-description">{{ strings['env.subtitle'] }}</p>
+    </div>
+  </div>
+
+  <section class="status-section section-panel">
+    <div class="section-heading">
+      <div>
+        <h2 class="section-title">{{ strings['env.tools_card'] }}</h2>
+      </div>
+      <span class="refresh-time">{{ strings['env.checked_at'].format(time=check_time) }}</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>{{ strings['env.col.tool'] }}</th><th>{{ strings['env.col.status'] }}</th><th>{{ strings['env.col.command'] }}</th><th>{{ strings['env.col.output'] }}</th></tr>
+        </thead>
+        <tbody>
+          {% for tool in tool_checks %}
+          <tr>
+            <td class="cell-mono">{{ tool.name }}</td>
+            <td>
+              {% if tool.available %}
+              <span class="status-badge badge-success">{{ strings['env.ok'] }}</span>
+              {% else %}
+              <span class="status-badge badge-danger">{{ strings['env.missing'] }}</span>
+              {% endif %}
+            </td>
+            <td class="cell-mono">{{ tool.command }}</td>
+            <td class="cell-mono">{{ tool.output }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="status-section section-panel">
+    <h2 class="section-title">{{ strings['env.config_card'] }}</h2>
+    <div class="info-grid info-grid-compact">
+      <div class="info-card"><span>{{ strings['env.dt.user'] }}</span><strong class="cell-mono">{{ config_summary.current_user }}</strong></div>
+      <div class="info-card"><span>{{ strings['env.dt.hostname'] }}</span><strong class="cell-mono">{{ config_summary.hostname }}</strong></div>
+      <div class="info-card"><span>{{ strings['env.dt.dashboard'] }}</span><strong class="cell-mono">{{ config_summary.dashboard_dir }}</strong></div>
+      <div class="info-card"><span>{{ strings['env.dt.workspace'] }}</span><strong class="cell-mono">{{ config_summary.workspace_root }}</strong></div>
+      <div class="info-card"><span>{{ strings['env.dt.bind'] }}</span><strong class="cell-mono">{{ config_summary.bind_host }}:{{ config_summary.bind_port }}</strong></div>
+      <div class="info-card"><span>{{ strings['env.dt.partition'] }}</span><strong class="cell-mono">{{ config_summary.slurm_partition }} (allowed: {{ config_summary.allowed_partitions | join(', ') }})</strong></div>
+      <div class="info-card"><span>{{ strings['env.dt.gpu'] }}</span><strong class="cell-mono">{{ config_summary.default_gres }} (allowed: {{ config_summary.allowed_gres | join(', ') }})</strong></div>
+      <div class="info-card"><span>{{ strings['env.dt.defaults'] }}</span><strong class="cell-mono">{{ config_summary.default_cpus }} CPUs / {{ config_summary.default_mem }} / {{ config_summary.default_time }}</strong></div>
+      <div class="info-card"><span>{{ strings['env.dt.lang'] }}</span><strong class="cell-mono">{{ config_summary.ui_lang }}</strong></div>
+      <div class="info-card"><span>{{ strings['env.dt.python'] }}</span><strong class="cell-mono">{{ config_summary.python_path }}</strong></div>
+    </div>
+  </section>
+</div>
+{% endblock %}

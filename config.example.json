@@ -1,0 +1,13 @@
+{
+  "workspace_root": "",
+  "slurm_partition": "",
+  "allowed_partitions": [],
+  "default_gres": "",
+  "allowed_gres": [],
+  "default_cpus": 4,
+  "default_mem": "16G",
+  "default_time": "00:30:00",
+  "server_bind_host": "127.0.0.1",
+  "server_port": 7860,
+  "ui_lang": "auto"
+}

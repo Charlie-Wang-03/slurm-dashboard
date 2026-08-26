@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ strings['brand.title'] }} - {{ page_title }}</title>
+  <link rel="stylesheet" href="/static/app.css?v=20260818" />
+</head>
+<body>
+  {% set nav_path = request.url.path %}
+  <header class="site-header top-nav">
+    <div class="nav-shell top-nav-shell">
+    <div class="brand nav-brand">
+      <span class="brand-title nav-brand-title">{{ strings['brand.title'] }}</span>
+      <span class="brand-subtitle nav-brand-subtitle">{{ strings['brand.subtitle'] }}</span>
+    </div>
+    <nav class="site-nav nav-links">
+      <a class="nav-link {% if nav_path == '/status' %}is-active active{% endif %}" href="/status">{{ strings['nav.status'] }}</a>
+      <a class="nav-link {% if nav_path.startswith('/jobs') %}is-active active{% endif %}" href="/jobs">{{ strings['nav.jobs'] }}</a>
+      <a class="nav-link {% if nav_path == '/submit' %}is-active active{% endif %}" href="/submit">{{ strings['nav.submit'] }}</a>
+      <a class="nav-link {% if nav_path == '/env-check' %}is-active active{% endif %}" href="/env-check">{{ strings['nav.env_check'] }}</a>
+      <a class="nav-link {% if nav_path == '/setup' %}is-active active{% endif %}" href="/setup">{{ strings['nav.setup'] }}</a>
+      <span class="lang-toggle" id="lang-toggle" aria-label="Language">
+        <a class="lang-toggle-btn {% if lang == 'en' %}is-active{% endif %}" href="?lang=en" title="English">EN</a>
+        <a class="lang-toggle-btn {% if lang == 'zh' %}is-active{% endif %}" href="?lang=zh" title="中文">中文</a>
+      </span>
+      <span class="theme-toggle" id="theme-toggle" aria-label="Theme toggle">
+        <button class="theme-toggle-btn" data-theme="system" title="System">🖥</button>
+        <button class="theme-toggle-btn" data-theme="light" title="Light">☀</button>
+        <button class="theme-toggle-btn" data-theme="dark" title="Dark">☾</button>
+      </span>
+    </nav>
+    </div>
+  </header>
+  <main class="page-shell">
+    {% block page_header %}{% endblock %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <p>{{ strings['footer.note'] }}</p>
+  </footer>
+  {% block scripts %}{% endblock %}
+  <script>
+  (function() {
+    var STORAGE_KEY = 'dashboard-theme';
+    var html = document.documentElement;
+    var toggle = document.getElementById('theme-toggle');
+    if (!toggle) return;
+
+    function setTheme(theme) {
+      if (theme === 'system') {
+        html.removeAttribute('data-theme');
+      } else {
+        html.setAttribute('data-theme', theme);
+      }
+      localStorage.setItem(STORAGE_KEY, theme);
+      updateActiveButton(theme);
+      document.dispatchEvent(new CustomEvent('dashboard-theme-changed'));
+    }
+
+    function updateActiveButton(theme) {
+      var buttons = toggle.querySelectorAll('.theme-toggle-btn');
+      buttons.forEach(function(btn) {
+        btn.classList.toggle('is-active', btn.getAttribute('data-theme') === theme);
+      });
+    }
+
+    var saved = localStorage.getItem(STORAGE_KEY) || 'system';
+    setTheme(saved);
+
+    toggle.addEventListener('click', function(e) {
+      var btn = e.target.closest('.theme-toggle-btn');
+      if (!btn) return;
+      setTheme(btn.getAttribute('data-theme'));
+    });
+
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', function() {
+      if (localStorage.getItem(STORAGE_KEY) === 'system' || !localStorage.getItem(STORAGE_KEY)) {
+        updateActiveButton('system');
+      }
+    });
+  })();
+  </script>
+  <script>
+  function copyText(text, btn) {
+    function done() {
+      if (btn) {
+        btn.classList.add('copied');
+        setTimeout(function() { btn.classList.remove('copied'); }, 1200);
+      }
+    }
+    function fallback(t) {
+      var ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function() { fallback(text); });
+    } else {
+      fallback(text);
+    }
+  }
+  </script>
+</body>
+</html>
